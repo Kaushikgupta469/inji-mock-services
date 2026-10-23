@@ -1,7 +1,8 @@
 const ed = require('@noble/ed25519');
 const forge = require('node-forge');
 
-const {ed25519PrivateKey, publicKeyId} = require("./constants");
+const {ed25519PrivateKey, publicKeyId, CLIENT_ID_PREFIXES} = require("./constants");
+const {createX509HashJWT} = require("./x509Hash");
 
 const jwtHeader =   {
     "typ": "oauth-authz-req+jwt",
@@ -37,6 +38,15 @@ async function createJWT(payload) {
 
 }
 
+// x509_hash signs with the leaf certificate key (ES256 + x5c), the others with the DID key (EdDSA + kid)
+async function createRequestObjectJWT(clientIdPrefix, payload) {
+    if (clientIdPrefix === CLIENT_ID_PREFIXES.X509_HASH) {
+        return createX509HashJWT(payload);
+    }
+    return createJWT(payload);
+}
+
 module.exports = {
-    createJWT
+    createJWT,
+    createRequestObjectJWT
 };

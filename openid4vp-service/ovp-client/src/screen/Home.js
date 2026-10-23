@@ -73,7 +73,8 @@ const Home = () => {
     const endpoints = [
         {name: CLIENT_ID_PREFIXES.PRE_REGISTERED},
         {name: CLIENT_ID_PREFIXES.REDIRECT_URI},
-        {name: CLIENT_ID_PREFIXES.DID}
+        {name: CLIENT_ID_PREFIXES.DID},
+        {name: CLIENT_ID_PREFIXES.X509_HASH}
     ];
 
     const handleClientIdPrefixClick = (endpointObj) => {
@@ -123,7 +124,8 @@ const Home = () => {
                         <div key={e.name} style={{ display: 'flex', alignItems: 'baseline'}}>
                             <span role="img" aria-label="emoji" style={styles.emoji}>
                                 {e.name === CLIENT_ID_PREFIXES.PRE_REGISTERED ? '🔐' :
-                                    e.name === CLIENT_ID_PREFIXES.REDIRECT_URI ? '🔄' : '🆔'}
+                                    e.name === CLIENT_ID_PREFIXES.REDIRECT_URI ? '🔄' :
+                                        e.name === CLIENT_ID_PREFIXES.X509_HASH ? '📜' : '🆔'}
                             </span>
                             <Button
                                 onClick={() => handleClientIdPrefixClick(e)}

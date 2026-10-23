@@ -2,7 +2,8 @@
 export const CLIENT_ID_PREFIXES = {
     PRE_REGISTERED: "pre-registered",
     REDIRECT_URI: "redirect_uri",
-    DID: "did"
+    DID: "did",
+    X509_HASH: "x509_hash"
 }
 
 // enum for spec versions

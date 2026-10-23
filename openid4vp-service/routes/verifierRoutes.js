@@ -1,5 +1,5 @@
 const QRCode = require('qrcode');
-const { createJWT } = require('../jwt');
+const { createRequestObjectJWT } = require('../jwt');
 const defaultPresentationDefinition = require('../presentation-request/presentationDefinitionMock.json');
 const { dcqlQuery: defaultDcqlQuery } = require('../presentation-request/DCQLQuery');
 const {
@@ -182,8 +182,8 @@ function registerVerifierRoutes(app, deps) {
             }
 
             const jwt = walletNonce
-                ? await createJWT({ ...inputData, wallet_nonce: walletNonce })
-                : await createJWT(inputData);
+                ? await createRequestObjectJWT(client_id_prefix, { ...inputData, wallet_nonce: walletNonce })
+                : await createRequestObjectJWT(client_id_prefix, inputData);
             res.contentType(ContentTypes.JWT);
             res.send(jwt);
         } catch (error) {
@@ -315,7 +315,7 @@ function registerVerifierRoutes(app, deps) {
             inputData = updateVpRequest(inputData, responseMode, specVersion);
 
             const clientId = inputData.client_id;
-            const request = await createJWT(inputData);
+            const request = await createRequestObjectJWT(client_id_prefix, inputData);
 
             inputData = { client_id: clientId, request };
         } else if (!finalAuthRequestMapElement[REQUEST_SIGNING_SUPPORT_MODES.UNSIGNED_REQUEST_SUPPORTED]) {
@@ -360,7 +360,7 @@ function registerVerifierRoutes(app, deps) {
     });
 
     // API for actual authorization request object
-    // client_id_prefix: pre-registered | redirect_uri | did (requires draft-23) | decentralized_identifier (requires version-1.0)
+    // client_id_prefix: pre-registered | redirect_uri | did (requires draft-23) | decentralized_identifier (requires version-1.0) | x509_hash (requires version-1.0)
     // API: /verifier/get-auth-request-obj/:sessionId/:client_id_prefix
     
     // Uses sessionId created during /verifier/:client_id_prefix/:request_mode request creation.
@@ -370,7 +370,7 @@ function registerVerifierRoutes(app, deps) {
 
     // API to generate QR codes for different client_id prefixes and request modes
     // API: /verifier/:client_id_prefix/:request_mode?spec=<spec_version>&signed=true|false&response_mode=<response_mode>
-    // client_id_prefix: pre-registered | redirect_uri | did (requires draft-23) | decentralized_identifier (requires version-1.0)
+    // client_id_prefix: pre-registered | redirect_uri | did (requires draft-23) | decentralized_identifier (requires version-1.0) | x509_hash (requires version-1.0)
     // request_mode: by_value | by_reference
     // response_mode: direct_post | direct_post.jwt
     app.get('/verifier/:client_id_prefix/:request_mode', async (req, res) => {
@@ -383,7 +383,7 @@ function registerVerifierRoutes(app, deps) {
     // - Applies optional request overrides (dcql_query / presentation_definition) and signing options.
     // - Returns `{ qrCodeData, qrData, inputData }` on success, or a 4xx/5xx error message on failure.
     // Request params:
-    // - path.client_id_prefix: pre-registered | redirect_uri | did (requires draft-23) | decentralized_identifier (requires version-1.0)
+    // - path.client_id_prefix: pre-registered | redirect_uri | did (requires draft-23) | decentralized_identifier (requires version-1.0) | x509_hash (requires version-1.0)
     // - path.request_mode: by_value | by_reference
     // - query.spec: spec version (optional; if not provided, defaults to version-1.0
     // Request body (optional):

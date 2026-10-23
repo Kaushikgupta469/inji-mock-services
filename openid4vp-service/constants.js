@@ -34,7 +34,8 @@ const ContentTypes = {
 const CLIENT_ID_PREFIXES = {
     PRE_REGISTERED: "pre-registered",
     REDIRECT_URI: "redirect_uri",
-    DECENTRALIZED_IDENTIFIER: "decentralized_identifier"
+    DECENTRALIZED_IDENTIFIER: "decentralized_identifier",
+    X509_HASH: "x509_hash"
 }
 
 // enum for Spec versions
