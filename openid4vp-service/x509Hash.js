@@ -15,13 +15,18 @@ const x509HashClientId = `x509_hash:${crypto.createHash('sha256').update(verifie
 const verifierPrivateKey = importPKCS8(verifierPrivateKeyPem, 'ES256');
 
 async function createX509HashJWT(payload) {
+    // client_metadata is a JSON object in a Request Object, but the by value flow passes it as a JSON string
+    const requestObject = typeof payload.client_metadata === 'string'
+        ? {...payload, client_metadata: JSON.parse(payload.client_metadata)}
+        : payload;
+
     const protectedHeader = {
         typ: 'oauth-authz-req+jwt',
         alg: 'ES256',
         x5c: [verifierCertificateDer.toString('base64')],
     };
 
-    return new CompactSign(new TextEncoder().encode(JSON.stringify(payload)))
+    return new CompactSign(new TextEncoder().encode(JSON.stringify(requestObject)))
         .setProtectedHeader(protectedHeader)
         .sign(await verifierPrivateKey);
 }

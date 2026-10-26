@@ -20,6 +20,8 @@ export default function QrControls({
     selectedSpec,
     selectedResponseMode,
     isRequestSigned,
+    specVersions = Object.values(SPEC_VERSIONS),
+    isSigningOptional = true,
     onRequestModeChange,
     onSpecVersionChange,
     onResponseModeChange,
@@ -33,7 +35,7 @@ export default function QrControls({
         {name: 'By Reference', selected: isByReference, onChange: () => onRequestModeChange(REQUEST_MODES.BY_REFERENCE)},
     ];
 
-    const specOptions = Object.values(SPEC_VERSIONS).map((v) => ({
+    const specOptions = specVersions.map((v) => ({
         name: v,
         selected: selectedSpec === v,
         onChange: () => onSpecVersionChange(v),
@@ -93,7 +95,7 @@ export default function QrControls({
                         </div>
                     </div>
 
-                    {isByValue && (
+                    {isByValue && isSigningOptional && (
                         <label style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -153,6 +155,8 @@ QrControls.propTypes = {
     selectedSpec: PropTypes.string.isRequired,
     selectedResponseMode: PropTypes.string.isRequired,
     isRequestSigned: PropTypes.bool.isRequired,
+    specVersions: PropTypes.arrayOf(PropTypes.string),
+    isSigningOptional: PropTypes.bool,
     onRequestModeChange: PropTypes.func.isRequired,
     onSpecVersionChange: PropTypes.func.isRequired,
     onResponseModeChange: PropTypes.func.isRequired,

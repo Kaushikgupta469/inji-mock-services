@@ -3,7 +3,7 @@ import {useLocation, useNavigate} from 'react-router-dom';
 import {INJIWEB_URL} from '../constants/mockui-constants';
 import {Loader} from '../components/common/Loader';
 import {Palette, font, spacing} from '../styles/palette';
-import {SPEC_VERSIONS, REQUEST_MODES, RESPONSE_MODES} from '../constants/constants';
+import {CLIENT_ID_PREFIXES, SPEC_VERSIONS, REQUEST_MODES, RESPONSE_MODES} from '../constants/constants';
 import {ScanResult} from '../components/scan/ScanResult';
 import Error from '../components/common/Error';
 import QrScreenHeader from '../components/qr/QrScreenHeader';
@@ -61,11 +61,14 @@ const QrScreen = () => {
     const navigate = useNavigate();
     const [, setLayoutTick] = useState(0);
 
-    const [isByValue, setIsByValue] = useState(true);
-    const [isByReference, setIsByReference] = useState(false);
+    // x509_hash exists only in version-1.0 and supports only signed requests, and a request by value is too large for a QR code
+    const isX509Hash = state?.name === CLIENT_ID_PREFIXES.X509_HASH;
+    const specVersions = isX509Hash ? [SPEC_VERSIONS.V_1_0] : Object.values(SPEC_VERSIONS);
+    const [isByValue, setIsByValue] = useState(!isX509Hash);
+    const [isByReference, setIsByReference] = useState(isX509Hash);
     const [selectedSpec, setSelectedSpec] = useState(Object.values(SPEC_VERSIONS)[0]);
     const [selectedResponseMode, setSelectedResponseMode] = useState(Object.values(RESPONSE_MODES)[0]);
-    const [isRequestSigned, setIsRequestSigned] = useState(false);
+    const [isRequestSigned, setIsRequestSigned] = useState(isX509Hash);
 
     const selectedSpecIsV1_0 = selectedSpec === SPEC_VERSIONS.V_1_0;
 
@@ -162,6 +165,8 @@ const QrScreen = () => {
             selectedSpec={selectedSpec}
             selectedResponseMode={selectedResponseMode}
             isRequestSigned={isRequestSigned}
+            specVersions={specVersions}
+            isSigningOptional={!isX509Hash}
             onRequestModeChange={handleRequestModeChange}
             onSpecVersionChange={handleSpecVersionChange}
             onResponseModeChange={handleResponseModeChange}
