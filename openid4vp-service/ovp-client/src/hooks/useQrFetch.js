@@ -26,12 +26,17 @@ export const useQrFetch = () => {
         responseMode = 'direct_post',
         dcqlQueryOverride,
         presentationDefinitionOverride,
+        signingAlg,
     ) => {
         try {
             const qrRequestBody = {
                 signed: isRequestSigned,
                 response_mode: responseMode,
             };
+
+            if (signingAlg !== undefined) {
+                qrRequestBody.signing_alg = signingAlg;
+            }
 
             if (dcqlQueryOverride !== undefined) {
                 qrRequestBody.dcql_query = dcqlQueryOverride;

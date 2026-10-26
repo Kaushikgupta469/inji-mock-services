@@ -22,9 +22,12 @@ export default function QrControls({
     isRequestSigned,
     specVersions = Object.values(SPEC_VERSIONS),
     isSigningOptional = true,
+    signingAlgs = [],
+    selectedSigningAlg,
     onRequestModeChange,
     onSpecVersionChange,
     onResponseModeChange,
+    onSigningAlgChange,
     onSignedChange,
     onOpenPresentationDetails,
 }) {
@@ -45,6 +48,12 @@ export default function QrControls({
         name: m,
         selected: selectedResponseMode === m,
         onChange: () => onResponseModeChange(m),
+    }));
+
+    const signingAlgOptions = signingAlgs.map((a) => ({
+        name: a,
+        selected: selectedSigningAlg === a,
+        onChange: () => onSigningAlgChange(a),
     }));
 
     return (
@@ -140,6 +149,13 @@ export default function QrControls({
                         </label>
                     )}
 
+                    {signingAlgs.length > 0 && (isByReference || isRequestSigned) && (
+                        <div style={{marginBottom: spacing.lg}}>
+                            <label style={fieldLabelStyle}>Request Signing Algorithm</label>
+                            <Dropdown options={signingAlgOptions} fullWidth light/>
+                        </div>
+                    )}
+
                     <Button onClick={onOpenPresentationDetails} variant={'tertiary'} style={{marginTop: 10}}>
                         Edit Presentation Request Details
                     </Button>
@@ -157,9 +173,12 @@ QrControls.propTypes = {
     isRequestSigned: PropTypes.bool.isRequired,
     specVersions: PropTypes.arrayOf(PropTypes.string),
     isSigningOptional: PropTypes.bool,
+    signingAlgs: PropTypes.arrayOf(PropTypes.string),
+    selectedSigningAlg: PropTypes.string,
     onRequestModeChange: PropTypes.func.isRequired,
     onSpecVersionChange: PropTypes.func.isRequired,
     onResponseModeChange: PropTypes.func.isRequired,
+    onSigningAlgChange: PropTypes.func,
     onSignedChange: PropTypes.func.isRequired,
     onOpenPresentationDetails: PropTypes.func.isRequired,
 };

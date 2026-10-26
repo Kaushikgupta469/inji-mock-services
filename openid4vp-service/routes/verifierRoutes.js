@@ -3,12 +3,16 @@ const { createRequestObjectJWT } = require('../jwt');
 const defaultPresentationDefinition = require('../presentation-request/presentationDefinitionMock.json');
 const { dcqlQuery: defaultDcqlQuery } = require('../presentation-request/DCQLQuery');
 const {
+    CLIENT_ID_PREFIXES,
     ContentTypes,
     REQUEST_MODES,
     REQUEST_SIGNING_SUPPORT_MODES,
+    SIGNING_ALGORITHMS,
     SPEC_VERSIONS,
     ResponseModes,
     baseUrl,
+    didDocumentUrl,
+    es256Did,
 } = require('../constants');
 const { finalAuthRequestMap } = require('../inputData');
 const { getVerifierMetadata } = require('../VerifierMetadata');
@@ -28,11 +32,25 @@ function createUrlWithParams(params) {
     return `${baseUrl}?${paramStrings.join('&')}`;
 }
 
-function buildRequestUri(baseUrl, clientIdPrefix, specVersion, responseMode, sessionId) {
+function buildRequestUri(baseUrl, clientIdPrefix, specVersion, responseMode, sessionId, signingAlg) {
     const requestUri = new URL(`${baseUrl}/verifier/get-auth-request-obj/${sessionId}/${clientIdPrefix}`);
     requestUri.searchParams.set('spec', specVersion);
     requestUri.searchParams.set('response_mode', responseMode);
+    if (signingAlg !== SIGNING_ALGORITHMS.EDDSA) {
+        requestUri.searchParams.set('signing_alg', signingAlg);
+    }
     return requestUri.toString();
+}
+
+function isSupportedSigningAlg(signingAlg) {
+    return Object.values(SIGNING_ALGORITHMS).includes(signingAlg);
+}
+
+function withEs256Did(inputData, clientIdPrefix, signingAlg) {
+    if (clientIdPrefix !== CLIENT_ID_PREFIXES.DECENTRALIZED_IDENTIFIER || signingAlg !== SIGNING_ALGORITHMS.ES256) {
+        return inputData;
+    }
+    return { ...inputData, client_id: inputData.client_id.replace(didDocumentUrl, es256Did) };
 }
 
 function isSupportedSpecVersion(specVersion) {
@@ -133,6 +151,11 @@ function registerVerifierRoutes(app, deps) {
             let client_id_prefix = normalizedPrefix;
             let specVersion = normalizedSpecVersion;
             const responseMode = req.query.response_mode || 'direct_post';
+            const signingAlg = req.query.signing_alg || SIGNING_ALGORITHMS.EDDSA;
+            if (!isSupportedSigningAlg(signingAlg)) {
+                res.status(400).send(`Bad Request: Unsupported signing_alg ${signingAlg}`);
+                return;
+            }
             const resolvedOverrides = resolveOverrides(req, providedDcqlQuery, providedPresentationDefinition);
             if (resolvedOverrides.errorMessage) {
                 res.status(400).send(resolvedOverrides.errorMessage);
@@ -181,9 +204,11 @@ function registerVerifierRoutes(app, deps) {
                 return;
             }
 
+            inputData = withEs256Did(inputData, client_id_prefix, signingAlg);
+
             const jwt = walletNonce
-                ? await createRequestObjectJWT(client_id_prefix, { ...inputData, wallet_nonce: walletNonce })
-                : await createRequestObjectJWT(client_id_prefix, inputData);
+                ? await createRequestObjectJWT(client_id_prefix, { ...inputData, wallet_nonce: walletNonce }, signingAlg)
+                : await createRequestObjectJWT(client_id_prefix, inputData, signingAlg);
             res.contentType(ContentTypes.JWT);
             res.send(jwt);
         } catch (error) {
@@ -211,6 +236,11 @@ function registerVerifierRoutes(app, deps) {
         const signedValue = req.method === 'POST' ? req.body?.signed : req.query.signed;
         const signed = signedValue === true || signedValue === 'true';
         const responseMode = (req.method === 'POST' ? req.body?.response_mode : req.query.response_mode) || 'direct_post';
+        const signingAlg = (req.method === 'POST' ? req.body?.signing_alg : req.query.signing_alg) || SIGNING_ALGORITHMS.EDDSA;
+        if (!isSupportedSigningAlg(signingAlg)) {
+            res.status(400).send(`Bad Request: Unsupported signing_alg ${signingAlg}`);
+            return;
+        }
 
         const resolvedOverrides = resolveOverrides(req);
         if (resolvedOverrides.errorMessage) {
@@ -273,8 +303,8 @@ function registerVerifierRoutes(app, deps) {
             }
 
             const updatedData = {
-                ...inputData,
-                request_uri: buildRequestUri(baseUrl, originalClientIdPrefix, specVersion, responseMode, sessionId),
+                ...withEs256Did(inputData, client_id_prefix, signingAlg),
+                request_uri: buildRequestUri(baseUrl, originalClientIdPrefix, specVersion, responseMode, sessionId, signingAlg),
             };
 
             await generateQrCodeResponse(QRCode, updatedData, res);
@@ -312,10 +342,10 @@ function registerVerifierRoutes(app, deps) {
                 return;
             }
 
-            inputData = updateVpRequest(inputData, responseMode, specVersion);
+            inputData = withEs256Did(updateVpRequest(inputData, responseMode, specVersion), client_id_prefix, signingAlg);
 
             const clientId = inputData.client_id;
-            const request = await createRequestObjectJWT(client_id_prefix, inputData);
+            const request = await createRequestObjectJWT(client_id_prefix, inputData, signingAlg);
 
             inputData = { client_id: clientId, request };
         } else if (!finalAuthRequestMapElement[REQUEST_SIGNING_SUPPORT_MODES.UNSIGNED_REQUEST_SUPPORTED]) {
@@ -369,10 +399,11 @@ function registerVerifierRoutes(app, deps) {
     app.post('/verifier/get-auth-request-obj/:sessionId/:client_id_prefix', handleSessionRequestUri);
 
     // API to generate QR codes for different client_id prefixes and request modes
-    // API: /verifier/:client_id_prefix/:request_mode?spec=<spec_version>&signed=true|false&response_mode=<response_mode>
+    // API: /verifier/:client_id_prefix/:request_mode?spec=<spec_version>&signed=true|false&response_mode=<response_mode>&signing_alg=<signing_alg>
     // client_id_prefix: pre-registered | redirect_uri | did (requires draft-23) | decentralized_identifier (requires version-1.0) | x509_hash (requires version-1.0)
     // request_mode: by_value | by_reference
     // response_mode: direct_post | direct_post.jwt
+    // signing_alg: EdDSA (default) | ES256, for pre-registered and did (the DID is then a did:jwk); x509_hash always signs with ES256
     app.get('/verifier/:client_id_prefix/:request_mode', async (req, res) => {
         await generateQrCode(req, res);
     });
@@ -389,6 +420,7 @@ function registerVerifierRoutes(app, deps) {
     // Request body (optional):
     // - signed: true | false
     // - response_mode: direct_post | direct_post.jwt
+    // - signing_alg: EdDSA (default) | ES256
     // - dcql_query: object (spec version-1.0)
     // - presentation_definition: object (non-version-1.0 drafts)
     // Response:

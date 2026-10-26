@@ -25,4 +25,10 @@ export const RESPONSE_MODES = {
     DIRECT_POST_JWT: "direct_post.jwt"
 }
 
+// enum for the algorithm a request object is signed with
+export const SIGNING_ALGORITHMS = {
+    EDDSA: "EdDSA",
+    ES256: "ES256"
+}
+
 // enum for support types

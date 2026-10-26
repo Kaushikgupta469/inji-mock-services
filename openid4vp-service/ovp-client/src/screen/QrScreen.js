@@ -3,7 +3,7 @@ import {useLocation, useNavigate} from 'react-router-dom';
 import {INJIWEB_URL} from '../constants/mockui-constants';
 import {Loader} from '../components/common/Loader';
 import {Palette, font, spacing} from '../styles/palette';
-import {CLIENT_ID_PREFIXES, SPEC_VERSIONS, REQUEST_MODES, RESPONSE_MODES} from '../constants/constants';
+import {CLIENT_ID_PREFIXES, SPEC_VERSIONS, REQUEST_MODES, RESPONSE_MODES, SIGNING_ALGORITHMS} from '../constants/constants';
 import {ScanResult} from '../components/scan/ScanResult';
 import Error from '../components/common/Error';
 import QrScreenHeader from '../components/qr/QrScreenHeader';
@@ -69,6 +69,9 @@ const QrScreen = () => {
     const [selectedSpec, setSelectedSpec] = useState(Object.values(SPEC_VERSIONS)[0]);
     const [selectedResponseMode, setSelectedResponseMode] = useState(Object.values(RESPONSE_MODES)[0]);
     const [isRequestSigned, setIsRequestSigned] = useState(isX509Hash);
+    const canChooseSigningAlg = state?.name === CLIENT_ID_PREFIXES.PRE_REGISTERED || state?.name === CLIENT_ID_PREFIXES.DID;
+    const [selectedSigningAlg, setSelectedSigningAlg] = useState(Object.values(SIGNING_ALGORITHMS)[0]);
+    const signingAlgToRequest = canChooseSigningAlg ? selectedSigningAlg : undefined;
 
     const selectedSpecIsV1_0 = selectedSpec === SPEC_VERSIONS.V_1_0;
 
@@ -100,8 +103,9 @@ const QrScreen = () => {
             selectedResponseMode,
             dcqlQueryOverride,
             presentationDefinitionOverride,
+            signingAlgToRequest,
         ),
-    [fetchQrCodeData, state, isByValue, selectedSpec, isRequestSigned, selectedResponseMode]);
+    [fetchQrCodeData, state, isByValue, selectedSpec, isRequestSigned, selectedResponseMode, signingAlgToRequest]);
 
     const presentationRequest = usePresentationRequest({selectedSpecIsV1_0: selectedSpecIsV1_0, onFetch: doFetch});
 
@@ -110,7 +114,7 @@ const QrScreen = () => {
         const presentationDefinitionOverride = presentationRequest.getPresentationDefinitionOverride();
         if (dcqlQueryOverride === null) return;
         void doFetch(dcqlQueryOverride, presentationDefinitionOverride);
-    }, [state, isByValue, isByReference, selectedSpec, fetchQrCodeData, isRequestSigned, selectedResponseMode]);
+    }, [state, isByValue, isByReference, selectedSpec, fetchQrCodeData, isRequestSigned, selectedResponseMode, signingAlgToRequest]);
 
     useEffect(() => {
         document.title = 'Scan';
@@ -130,7 +134,7 @@ const QrScreen = () => {
         resetValues();
         const dcqlQueryOverride = presentationRequest.getDcqlQueryOverride();
         if (dcqlQueryOverride === null) return;
-        await fetchQrCodeData(getClientIdPrefix(state?.name, selectedSpec), mode, selectedSpec, isRequestSigned, selectedResponseMode, dcqlQueryOverride);
+        await fetchQrCodeData(getClientIdPrefix(state?.name, selectedSpec), mode, selectedSpec, isRequestSigned, selectedResponseMode, dcqlQueryOverride, undefined, signingAlgToRequest);
     };
 
     const handleSpecVersionChange = async (version) => {
@@ -141,12 +145,18 @@ const QrScreen = () => {
             ? presentationRequest.getDcqlQueryOverride()
             : undefined;
         if (dcqlQueryOverride === null) return;
-        await fetchQrCodeData(getClientIdPrefix(state?.name, version), isByValue ? REQUEST_MODES.BY_VALUE : REQUEST_MODES.BY_REFERENCE, version, isRequestSigned, selectedResponseMode, dcqlQueryOverride);
+        await fetchQrCodeData(getClientIdPrefix(state?.name, version), isByValue ? REQUEST_MODES.BY_VALUE : REQUEST_MODES.BY_REFERENCE, version, isRequestSigned, selectedResponseMode, dcqlQueryOverride, undefined, signingAlgToRequest);
     };
 
     const handleResponseModeChange = (mode) => {
         if (mode === selectedResponseMode) return;
         setSelectedResponseMode(mode);
+        resetValues();
+    };
+
+    const handleSigningAlgChange = (alg) => {
+        if (alg === selectedSigningAlg) return;
+        setSelectedSigningAlg(alg);
         resetValues();
     };
 
@@ -167,9 +177,12 @@ const QrScreen = () => {
             isRequestSigned={isRequestSigned}
             specVersions={specVersions}
             isSigningOptional={!isX509Hash}
+            signingAlgs={canChooseSigningAlg ? Object.values(SIGNING_ALGORITHMS) : []}
+            selectedSigningAlg={selectedSigningAlg}
             onRequestModeChange={handleRequestModeChange}
             onSpecVersionChange={handleSpecVersionChange}
             onResponseModeChange={handleResponseModeChange}
+            onSigningAlgChange={handleSigningAlgChange}
             onSignedChange={(isChecked) => setIsRequestSigned(isChecked)}
             onOpenPresentationDetails={presentationRequest.openPresentationRequestDetails}
         />
